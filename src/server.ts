@@ -12,39 +12,31 @@ const io = new Server(httpServer, {
 	},
 });
 
-// ヘルスチェック（HTTP）
-app.get("/health", (_req, res) => {
-	res.status(200).send("ok");
-});
-
-// Socket.IOの接続テスト
 io.on("connection", (socket) => {
-	console.log("[socket] connected:", socket.id);
+	socket.on("joinRoom", (roomId: string) => {
+		socket.join(roomId);
 
-	// サーバーから初回メッセージ
-	socket.emit("welcome", { message: "connected", socketId: socket.id });
+		// 入室ACK（参加した本人へ）
+		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		socket.emit("joinedRoom", { members: size });
 
-	// クライアントからのpingを受けてpongで返す
-	socket.on("ping", (payload) => {
-		console.log("[socket] ping:", payload);
-		socket.emit("pong", payload ?? { time: Date.now() });
+		// 2人以上そろったら、部屋の全員にペアリング完了通知
+		if (size >= 2) {
+			io.to(roomId).emit("roomPaired", { roomId, members: size });
+		}
 	});
 
-	// 部屋参加のサンプル
-	socket.on("joinRoom", (room) => {
-		socket.join(room);
-		console.log(`[#${room}] joined:`, socket.id);
-		socket.to(room).emit("userJoined", { socketId: socket.id, room });
+	socket.on("playerMove", ({ roomId, colIndex }) => {
+		socket.to(roomId).emit("opponentMove", { colIndex });
 	});
 
-	socket.on("disconnect", (reason) => {
-		console.log("[socket] disconnected:", socket.id, "reason:", reason);
+	socket.on("restart", (roomId: string) => {
+		io.to(roomId).emit("restart");
 	});
 });
 
+// サーバ起動
 const PORT = Number(process.env.PORT) || 4000;
 httpServer.listen(PORT, () => {
 	console.log(`Server listening on http://localhost:${PORT}`);
 });
-
-
