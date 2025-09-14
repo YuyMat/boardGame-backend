@@ -14,8 +14,8 @@ const io = new Server(httpServer, {
 
 // ルームごとのロール固定用メモリ
 const roomRoles = new Map<string, { r?: string; y?: string }>();
-// 盤面スナップショット（サーバ非正規ですが、最新状態を共有するために保持）
-const roomSnapshots = new Map<string, { board: any; currentTurn: 'r' | 'y'; lastPosition?: { row: number; col: number }; isWin?: boolean }>();
+// 盤面スナップショット（最新状態を共有するために保持）
+const roomSnapshots = new Map<string, { board: any; currentTurn: 'r' | 'y'; lastPosition?: { row: number; col: number } }>();
 
 io.on("connection", (socket) => {
 	socket.on("joinRoom", (roomId: string) => {
@@ -57,9 +57,9 @@ io.on("connection", (socket) => {
 	});
 
 	// クライアントから受け取った最新盤面を同室へ配信し、スナップショット更新
-	socket.on("syncBoard", ({ roomId, board, currentTurn, lastPosition, isWin }) => {
-		roomSnapshots.set(roomId, { board, currentTurn, lastPosition, isWin });
-		socket.to(roomId).emit("boardUpdated", { board, currentTurn, lastPosition, isWin });
+	socket.on("syncBoard", ({ roomId, board, currentTurn, lastPosition }) => {
+		roomSnapshots.set(roomId, { board, currentTurn, lastPosition });
+		socket.to(roomId).emit("boardUpdated", { board, currentTurn, lastPosition });
 	});
 
 	socket.on("restart", (roomId: string) => {
