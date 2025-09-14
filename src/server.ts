@@ -56,7 +56,14 @@ io.on("connection", (socket) => {
 		// メンバー数を1秒ごとに配信（ルーム初回のみIntervalを作成）
 		if (!roomMemberIntervals.has(roomId)) {
 			const intervalId = setInterval(() => {
-				const count = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+				const room = io.sockets.adapter.rooms.get(roomId);
+				const count = room?.size ?? 0;
+				// 部屋が空 or 存在しない場合は自動的にIntervalを停止
+				if (!room || count === 0) {
+					clearInterval(intervalId);
+					roomMemberIntervals.delete(roomId);
+					return;
+				}
 				io.to(roomId).emit("membersUpdate", { members: count });
 			}, 1000);
 			roomMemberIntervals.set(roomId, intervalId);
@@ -82,15 +89,17 @@ io.on("connection", (socket) => {
 		const roomId = (socket.data as any).roomId as string | undefined;
 		if (!roomId) return;
 		const roles = roomRoles.get(roomId);
-		if (!roles) return;
-		if (roles.r === socket.id) delete roles.r;
-		if (roles.y === socket.id) delete roles.y;
-		if (!roles.r && !roles.y) {
-			roomRoles.delete(roomId);
-			roomSnapshots.delete(roomId);
+		// rolesが存在する場合のみロールを更新
+		if (roles) {
+			if (roles.r === socket.id) delete roles.r;
+			if (roles.y === socket.id) delete roles.y;
+			if (!roles.r && !roles.y) {
+				roomRoles.delete(roomId);
+				roomSnapshots.delete(roomId);
+			}
 		}
 
-		// ルームの接続が0ならIntervalを停止
+		// ルームの接続が0なら確実にクリーンアップ（Interval停止・メモリ解放）
 		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
 		if (size === 0) {
 			const intervalId = roomMemberIntervals.get(roomId);
@@ -98,6 +107,8 @@ io.on("connection", (socket) => {
 				clearInterval(intervalId);
 				roomMemberIntervals.delete(roomId);
 			}
+			roomRoles.delete(roomId);
+			roomSnapshots.delete(roomId);
 		}
 	});
 });
