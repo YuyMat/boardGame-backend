@@ -16,6 +16,8 @@ const io = new Server(httpServer, {
 const roomRoles = new Map<string, { r?: string; y?: string }>();
 // 盤面スナップショット（最新状態を共有するために保持）
 const roomSnapshots = new Map<string, { board: any; currentTurn: 'r' | 'y'; lastPosition?: { row: number; col: number } }>();
+// ルームごとのメンバー数を定期配信するためのInterval管理
+const roomMemberIntervals = new Map<string, ReturnType<typeof setInterval>>();
 
 io.on("connection", (socket) => {
 	socket.on("joinRoom", (roomId: string) => {
@@ -50,6 +52,15 @@ io.on("connection", (socket) => {
 		if (size >= 2) {
 			io.to(roomId).emit("roomPaired", { roomId, members: size });
 		}
+
+		// メンバー数を1秒ごとに配信（ルーム初回のみIntervalを作成）
+		if (!roomMemberIntervals.has(roomId)) {
+			const intervalId = setInterval(() => {
+				const count = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+				io.to(roomId).emit("membersUpdate", { members: count });
+			}, 1000);
+			roomMemberIntervals.set(roomId, intervalId);
+		}
 	});
 
 	socket.on("playerMove", ({ roomId, colIndex }) => {
@@ -77,6 +88,16 @@ io.on("connection", (socket) => {
 		if (!roles.r && !roles.y) {
 			roomRoles.delete(roomId);
 			roomSnapshots.delete(roomId);
+		}
+
+		// ルームの接続が0ならIntervalを停止
+		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		if (size === 0) {
+			const intervalId = roomMemberIntervals.get(roomId);
+			if (intervalId) {
+				clearInterval(intervalId);
+				roomMemberIntervals.delete(roomId);
+			}
 		}
 	});
 });
