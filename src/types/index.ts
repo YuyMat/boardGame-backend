@@ -17,11 +17,11 @@ export type RoleType = 1 | 2;
 
 export type RoomSnapshot = {
 	board?: BoardState;
-	currentTurn?: RoleType;
+	currentRole?: RoleType;
 	lastPosition?: Position;
 }
 
-export type FirstRole = 'random' | RoleType | null;
+export type FirstRole = 'random' | RoleType;
 
 export type Rooms = {
 	roles: Roles;
