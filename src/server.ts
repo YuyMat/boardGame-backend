@@ -59,7 +59,7 @@ io.on("connection", (socket) => {
 		socket.emit("joinedRoom", { members, role });
 
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
-		if (members >= 2) {
+		if (members === 2) {
 			const firstRole = room.firstRole === "random"
 				? (Math.random() < 0.5 ? Role.RED : Role.YELLOW)
 				: room.firstRole;
@@ -117,12 +117,9 @@ io.on("connection", (socket) => {
 	socket.on("restart", (roomId: string) => {
 		// サーバ保持のfirstRoleに基づいて次の手番を決定
 		const room = rooms.get(roomId);
-		let firstRole: FirstRole = "random";
-		if (room?.firstRole) {
-			firstRole = room.firstRole === "random"
-				? (Math.random() < 0.5 ? Role.RED : Role.YELLOW)
-				: room.firstRole;
-		}
+		let firstRole: RoleType = Math.random() < 0.5 ? Role.RED : Role.YELLOW;
+		if (room?.firstRole && room.firstRole !== "random")
+			firstRole = room.firstRole;
 		io.to(roomId).emit("restart", { firstRole });
 		// スナップショットはクリア（初期化はクライアント側で実施）
 		if (room) room.snapshots = {};
