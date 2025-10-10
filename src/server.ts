@@ -24,7 +24,7 @@ const setInitialRooms = (roomId: RoomId) => {
 	rooms.set(roomId, {
 		roles: {},
 		snapshots: {},
-		firstRole: null,
+		firstRole: "random",
 		memberIntervals: undefined,
 	})
 }
@@ -59,16 +59,18 @@ io.on("connection", (socket) => {
 		socket.emit("joinedRoom", { members, role });
 
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
-		if (members >= 2) {
-			// TODO: firstRoleを配信
-			io.to(roomId).emit("roomPaired");
+		if (members === 2) {
+			const firstRole = room.firstRole === "random"
+				? (Math.random() < 0.5 ? Role.RED : Role.YELLOW)
+				: room.firstRole;
+			io.to(roomId).emit("roomPaired", firstRole);
 		}
 
 		// 既にスナップショットがあれば、新規参加者へ送る
 		const snapshot = rooms.get(roomId)?.snapshots;
 		const hasSnapshot = !!snapshot && (
 			snapshot.board !== undefined ||
-			snapshot.currentTurn !== undefined ||
+			snapshot.currentRole !== undefined ||
 			snapshot.lastPosition !== undefined
 		);
 		if (hasSnapshot) {
@@ -98,7 +100,6 @@ io.on("connection", (socket) => {
 		const room = rooms.get(roomId);
 		if (!room) return;
 		room.firstRole = firstRole;
-		io.to(roomId).emit("firstRoleUpdated", { firstRole });
 	});
 
 	socket.on("playerMove", ({ roomId, colIndex }) => {
@@ -106,22 +107,19 @@ io.on("connection", (socket) => {
 	});
 
 	// クライアントから受け取った最新盤面を同室へ配信し、スナップショット更新
-	socket.on("syncBoard", ({ roomId, board, currentTurn, lastPosition }) => {
+	socket.on("syncBoard", ({ roomId, board, currentRole, lastPosition }) => {
 		const room = rooms.get(roomId);
 		if (!room) return;
-		room.snapshots = { board, currentTurn, lastPosition };
-		socket.to(roomId).emit("boardUpdated", { board, currentTurn, lastPosition });
+		room.snapshots = { board, currentRole, lastPosition };
+		socket.to(roomId).emit("boardUpdated", { board, currentRole, lastPosition });
 	});
 
 	socket.on("restart", (roomId: string) => {
 		// サーバ保持のfirstRoleに基づいて次の手番を決定
 		const room = rooms.get(roomId);
-		let firstRole: FirstRole = null;
-		if (room?.firstRole) {
-			firstRole = room.firstRole === 'random'
-				? (Math.random() < 0.5 ? Role.RED : Role.YELLOW)
-				: room.firstRole;
-		}
+		let firstRole: RoleType = Math.random() < 0.5 ? Role.RED : Role.YELLOW;
+		if (room?.firstRole && room.firstRole !== "random")
+			firstRole = room.firstRole;
 		io.to(roomId).emit("restart", { firstRole });
 		// スナップショットはクリア（初期化はクライアント側で実施）
 		if (room) room.snapshots = {};
