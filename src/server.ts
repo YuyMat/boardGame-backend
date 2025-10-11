@@ -20,6 +20,14 @@ const io = new Server(httpServer, {
 
 const rooms = new Map<RoomId, Rooms>();
 
+// 存在確認API（HTTP）
+app.get("/rooms/:roomId/exists", (req, res) => {
+    const { roomId } = req.params;
+    const exists = rooms.has(roomId) || io.sockets.adapter.rooms.has(roomId);
+    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+    res.json({ exists });
+});
+
 const setInitialRooms = (roomId: RoomId) => {
 	rooms.set(roomId, {
 		roles: {},
