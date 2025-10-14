@@ -8,7 +8,7 @@ const app = express();
 const httpServer = createServer(app);
 
 const allowedOrigin = process.env.NODE_ENV === 'production'
-	? (process.env.FRONTEND_URL || "https://board-games-mu.vercel.app")
+	? "https://board-games-mu.vercel.app"
 	: "http://localhost:3000";
 
 const io = new Server(httpServer, {
@@ -19,14 +19,6 @@ const io = new Server(httpServer, {
 });
 
 const rooms = new Map<RoomId, Rooms>();
-
-// 存在確認API（HTTP）
-app.get("/rooms/:roomId/exists", (req, res) => {
-    const { roomId } = req.params;
-    const exists = rooms.has(roomId) || io.sockets.adapter.rooms.has(roomId);
-    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
-    res.json({ exists });
-});
 
 const setInitialRooms = (roomId: RoomId) => {
 	rooms.set(roomId, {
@@ -153,6 +145,20 @@ io.on("connection", (socket) => {
 			rooms.delete(roomId);
 		}
 	});
+});
+
+// 存在確認API（HTTP）
+app.get("/rooms/:roomId/exists", (req, res) => {
+	const { roomId } = req.params;
+	const exists = rooms.has(roomId) || io.sockets.adapter.rooms.has(roomId);
+	res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+	res.json({ exists });
+});
+
+// サーバー動作確認
+app.get("/health", (req, res) => {
+	res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+	res.status(200).send("ok");
 });
 
 // サーバ起動
