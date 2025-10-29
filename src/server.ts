@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { RoomId, FirstRole, Rooms, RoleType } from "./types";
+import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
 import { Role } from "./constants/connect4";
 
 const app = express();
@@ -20,8 +20,9 @@ const io = new Server(httpServer, {
 
 const rooms = new Map<RoomId, Rooms>();
 
-const setInitialRooms = (roomId: RoomId) => {
+const setInitialRooms = (roomId: RoomId, gameType: GameType) => {
 	rooms.set(roomId, {
+		gameType,
 		roles: {},
 		snapshots: {},
 		firstRole: "random",
@@ -30,18 +31,18 @@ const setInitialRooms = (roomId: RoomId) => {
 }
 
 // ルーム取得（なければ初期化して返す）
-const getOrInitRoom = (roomId: RoomId): Rooms => {
+const getOrInitRoom = (roomId: RoomId, gameType: GameType): Rooms => {
 	const existing = rooms.get(roomId);
 	if (existing) return existing;
-	setInitialRooms(roomId);
+	setInitialRooms(roomId, gameType);
 	return rooms.get(roomId)!;
 }
 
 io.on("connection", (socket) => {
-	socket.on("startRoom", (roomId: string) => {
+	socket.on("startRoom", (roomId: string, gameType: GameType) => {
 		socket.join(roomId);
 
-		const room = getOrInitRoom(roomId);
+		const room = getOrInitRoom(roomId, gameType);
 		const roles = room.roles;
 		let role: RoleType | null = null;
 		if (!roles[Role.RED]) {
