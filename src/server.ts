@@ -2,7 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
-import { Role } from "./constants/connect4";
+import { Role } from "./constants";
 
 const app = express();
 const httpServer = createServer(app);
@@ -45,13 +45,13 @@ io.on("connection", (socket) => {
 		const room = getOrInitRoom(roomId, gameType);
 		const roles = room.roles;
 		let role: RoleType | null = null;
-		if (!roles[Role.RED]) {
-			role = Role.RED;
-			roles[Role.RED] = socket.id;
+		if (!roles[Role.MAIN]) {
+			role = Role.MAIN;
+			roles[Role.MAIN] = socket.id;
 		}
-		else if (roles[Role.RED] !== socket.id && !roles[Role.YELLOW]) {
-			role = Role.YELLOW;
-			roles[Role.YELLOW] = socket.id;
+		else if (roles[Role.MAIN] !== socket.id && !roles[Role.SUB]) {
+			role = Role.SUB;
+			roles[Role.SUB] = socket.id;
 		}
 		(socket.data as any).roomId = roomId;
 
@@ -62,7 +62,7 @@ io.on("connection", (socket) => {
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
 		if (members === 2) {
 			const firstRole = room.firstRole === "random"
-				? (Math.random() < 0.5 ? Role.RED : Role.YELLOW)
+				? (Math.random() < 0.5 ? Role.MAIN : Role.SUB)
 				: room.firstRole;
 			io.to(roomId).emit("roomPaired", firstRole);
 		}
@@ -118,7 +118,7 @@ io.on("connection", (socket) => {
 	socket.on("restart", (roomId: string) => {
 		// サーバ保持のfirstRoleに基づいて次の手番を決定
 		const room = rooms.get(roomId);
-		let firstRole: RoleType = Math.random() < 0.5 ? Role.RED : Role.YELLOW;
+		let firstRole: RoleType = Math.random() < 0.5 ? Role.MAIN : Role.SUB;
 		if (room?.firstRole && room.firstRole !== "random")
 			firstRole = room.firstRole;
 		io.to(roomId).emit("restart", { firstRole });
@@ -133,8 +133,8 @@ io.on("connection", (socket) => {
 		const room = rooms.get(roomId);
 		// ロールのクリーンアップ（このソケットが担当していた役を解除）
 		if (room) {
-			if (room.roles[Role.RED] === socket.id) delete room.roles[Role.RED];
-			if (room.roles[Role.YELLOW] === socket.id) delete room.roles[Role.YELLOW];
+			if (room.roles[Role.MAIN] === socket.id) delete room.roles[Role.MAIN];
+			if (room.roles[Role.SUB] === socket.id) delete room.roles[Role.SUB];
 		}
 
 		// ルームの接続が0ならInterval停止とメモリ解放
