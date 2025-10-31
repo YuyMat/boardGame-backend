@@ -23,7 +23,10 @@ export type RoomSnapshot = {
 
 export type FirstRole = 'random' | RoleType;
 
+export type GameType = "connect4" | "reversi" | null;
+
 export type Rooms = {
+	gameType: GameType;
 	roles: Roles;
 	snapshots: RoomSnapshot;
 	firstRole: FirstRole;
