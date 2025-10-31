@@ -1,3 +1,5 @@
+import { Role } from "../constants";
+
 export type RoomId = string;
 export type SocketId = string;
 
@@ -7,13 +9,13 @@ export type Position = {
 }
 
 export type Roles = {
-	1?: SocketId;
-	2?: SocketId;
+	[Role.MAIN]?: SocketId;
+	[Role.SUB]?: SocketId;
 }
 
-export type CellState = null | 1 | 2;
+export type CellState = null | typeof Role.MAIN | typeof Role.SUB;
 export type BoardState = CellState[][];
-export type RoleType = 1 | 2;
+export type RoleType = typeof Role.MAIN | typeof Role.SUB;
 
 export type RoomSnapshot = {
 	board?: BoardState;
