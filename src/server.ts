@@ -148,12 +148,11 @@ io.on("connection", (socket) => {
 	});
 });
 
-// 存在確認API（HTTP）
-app.get("/rooms/:roomId/exists", (req, res) => {
-	const { roomId } = req.params;
-	const exists = rooms.has(roomId) || io.sockets.adapter.rooms.has(roomId);
+// ルーム数取得API（HTTP）
+app.get("/count-rooms", (req, res) => {
+	const count = rooms.size;
 	res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
-	res.json({ exists });
+	res.json({ count });
 });
 
 // サーバー動作確認
