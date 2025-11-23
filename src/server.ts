@@ -8,7 +8,7 @@ const app = express();
 const httpServer = createServer(app);
 
 const allowedOrigin = process.env.NODE_ENV === 'production'
-	? "https://board-games-mu.vercel.app"
+	? "https://bgfuns.com"
 	: "http://localhost:3000";
 
 const io = new Server(httpServer, {
