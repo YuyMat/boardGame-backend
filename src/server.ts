@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import cors from "cors";
 import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
 import { Role } from "./constants";
 
@@ -10,6 +11,11 @@ const httpServer = createServer(app);
 const allowedOrigin = process.env.NODE_ENV === 'production'
 	? "https://bgfuns.com"
 	: "http://localhost:3000";
+
+app.use(cors({
+	origin: allowedOrigin,
+	methods: ["GET", "POST"],
+}));
 
 const io = new Server(httpServer, {
 	cors: {
@@ -151,13 +157,11 @@ io.on("connection", (socket) => {
 // ルーム数取得API（HTTP）
 app.get("/count-rooms", (req, res) => {
 	const count = rooms.size;
-	res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
 	res.json({ count });
 });
 
 // サーバー動作確認
 app.get("/health", (req, res) => {
-	res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
 	res.status(200).send("ok");
 });
 
