@@ -109,10 +109,6 @@ io.on("connection", (socket) => {
 		room.firstRole = firstRole;
 	});
 
-	socket.on("playerMove", ({ roomId, colIndex }) => {
-		socket.to(roomId).emit("opponentMove", { colIndex });
-	});
-
 	// クライアントから受け取った最新盤面を同室へ配信し、スナップショット更新
 	socket.on("syncBoard", ({ roomId, board, currentRole, lastPosition }) => {
 		const room = rooms.get(roomId);
