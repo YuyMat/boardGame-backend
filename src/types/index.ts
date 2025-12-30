@@ -32,7 +32,7 @@ export type Rooms = {
 	roles: Roles;
 	snapshots: RoomSnapshot;
 	firstRole: FirstRole;
-	memberIntervals: ReturnType<typeof setInterval> | undefined;
+	isPlaying: boolean;
 }
 
 export interface SetFirstRole {
