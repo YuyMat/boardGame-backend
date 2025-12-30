@@ -32,7 +32,7 @@ const setInitialRooms = (roomId: RoomId, gameType: GameType) => {
 		roles: {},
 		snapshots: {},
 		firstRole: "random",
-		memberIntervals: undefined,
+		isPlaying: false,
 	})
 }
 
@@ -83,23 +83,6 @@ io.on("connection", (socket) => {
 		if (hasSnapshot) {
 			socket.emit("boardUpdated", snapshot);
 		}
-
-		// メンバー数を5秒ごとに配信（ルーム初回のみIntervalを作成）
-		if (!room.memberIntervals) {
-			const interval = setInterval(() => {
-				const adapterRoom = io.sockets.adapter.rooms.get(roomId);
-				const members = adapterRoom?.size ?? 0;
-				if (members === 0) {
-					clearInterval(interval);
-					const current = rooms.get(roomId);
-					if (current) current.memberIntervals = undefined;
-					rooms.delete(roomId);
-					return;
-				}
-				io.to(roomId).emit("membersUpdate", { members });
-			}, 5000);
-			room.memberIntervals = interval;
-		}
 	});
 
 	// 先手設定の更新（ルーム作成者側UIから送信想定）
@@ -107,6 +90,13 @@ io.on("connection", (socket) => {
 		const room = rooms.get(roomId);
 		if (!room) return;
 		room.firstRole = firstRole;
+	});
+
+	socket.on("startGame", (roomId: string) => {
+		const room = rooms.get(roomId);
+		if (!room) return;
+		room.isPlaying = true;
+		io.to(roomId).emit("gameStarted");
 	});
 
 	// クライアントから受け取った最新盤面を同室へ配信し、スナップショット更新
@@ -132,20 +122,15 @@ io.on("connection", (socket) => {
 		const roomId = (socket.data as any).roomId as string | undefined;
 		if (!roomId) return;
 
+		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		if (size > 0)
+			io.to(roomId).emit("someoneDisconnected");
+
 		const room = rooms.get(roomId);
 		// ロールのクリーンアップ（このソケットが担当していた役を解除）
 		if (room) {
 			if (room.roles[Role.MAIN] === socket.id) delete room.roles[Role.MAIN];
 			if (room.roles[Role.SUB] === socket.id) delete room.roles[Role.SUB];
-		}
-
-		// ルームの接続が0ならInterval停止とメモリ解放
-		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		if (size === 0) {
-			if (room?.memberIntervals) {
-				clearInterval(room.memberIntervals);
-			}
-			rooms.delete(roomId);
 		}
 	});
 });
