@@ -123,14 +123,18 @@ io.on("connection", (socket) => {
 		if (!roomId) return;
 
 		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		if (size > 0)
+		if (size > 0) {
 			io.to(roomId).emit("someoneDisconnected");
+		}
 
 		const room = rooms.get(roomId);
 		// ロールのクリーンアップ（このソケットが担当していた役を解除）
 		if (room) {
 			if (room.roles[Role.MAIN] === socket.id) delete room.roles[Role.MAIN];
 			if (room.roles[Role.SUB] === socket.id) delete room.roles[Role.SUB];
+		}
+		if (size === 0) {
+			rooms.delete(roomId);
 		}
 	});
 });
