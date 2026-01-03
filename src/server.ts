@@ -78,15 +78,10 @@ io.on("connection", (socket) => {
 			io.to(roomId).emit("roomPaired", { firstRole, guestIds });
 		}
 
-		// 既にスナップショットがあれば、新規参加者へ送る
-		const snapshot = rooms.get(roomId)?.snapshots;
-		const hasSnapshot = !!snapshot && (
-			snapshot.board !== undefined ||
-			snapshot.currentRole !== undefined ||
-			snapshot.lastPosition !== undefined
-		);
-		if (hasSnapshot) {
+		if (room.isPlaying) {
+			const snapshot = room.snapshots;
 			socket.emit("boardUpdated", snapshot);
+			io.to(roomId).emit("membersUpdate", { members });
 		}
 	});
 
@@ -129,7 +124,7 @@ io.on("connection", (socket) => {
 
 		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
 		if (size > 0) {
-			io.to(roomId).emit("someoneDisconnected");
+			socket.to(roomId).emit("someoneDisconnected");
 		}
 
 		const room = rooms.get(roomId);
