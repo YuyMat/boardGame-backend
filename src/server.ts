@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
 import { Role } from "./constants";
+import { getRandomInt } from "./libs/getRandom";
 
 const app = express();
 const httpServer = createServer(app);
@@ -30,6 +31,7 @@ const setInitialRooms = (roomId: RoomId, gameType: GameType) => {
 	rooms.set(roomId, {
 		gameType,
 		roles: {},
+		guestIds: {},
 		snapshots: {},
 		firstRole: "random",
 		isPlaying: false,
@@ -49,28 +51,31 @@ io.on("connection", (socket) => {
 		socket.join(roomId);
 
 		const room = getOrInitRoom(roomId, gameType);
-		const roles = room.roles;
+		const { roles, guestIds } = room;
 		let role: RoleType | null = null;
+		const guestId = getRandomInt(1000000, 10000000).toString();
 		if (!roles[Role.MAIN]) {
 			role = Role.MAIN;
 			roles[Role.MAIN] = socket.id;
+			guestIds[Role.MAIN] = guestId;
 		}
 		else if (roles[Role.MAIN] !== socket.id && !roles[Role.SUB]) {
 			role = Role.SUB;
 			roles[Role.SUB] = socket.id;
+			guestIds[Role.SUB] = guestId;
 		}
 		(socket.data as any).roomId = roomId;
 
 		// 入室ACK（参加した本人へ）
 		let members = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		socket.emit("joinedRoom", { members, role });
+		socket.emit("joinedRoom", { members, role, guestIds });
 
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
 		if (members === 2) {
 			const firstRole = room.firstRole === "random"
 				? (Math.random() < 0.5 ? Role.MAIN : Role.SUB)
 				: room.firstRole;
-			io.to(roomId).emit("roomPaired", firstRole);
+			io.to(roomId).emit("roomPaired", { firstRole, guestIds });
 		}
 
 		// 既にスナップショットがあれば、新規参加者へ送る
@@ -130,8 +135,14 @@ io.on("connection", (socket) => {
 		const room = rooms.get(roomId);
 		// ロールのクリーンアップ（このソケットが担当していた役を解除）
 		if (room) {
-			if (room.roles[Role.MAIN] === socket.id) delete room.roles[Role.MAIN];
-			if (room.roles[Role.SUB] === socket.id) delete room.roles[Role.SUB];
+			if (room.roles[Role.MAIN] === socket.id) {
+				delete room.roles[Role.MAIN];
+				delete room.guestIds[Role.MAIN];
+			}
+			if (room.roles[Role.SUB] === socket.id) {
+				delete room.roles[Role.SUB];
+				delete room.guestIds[Role.SUB];
+			}
 		}
 		if (size === 0) {
 			rooms.delete(roomId);
