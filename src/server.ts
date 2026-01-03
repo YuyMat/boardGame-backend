@@ -3,7 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
-import { Role } from "./constants";
+import { Role, MAX_PLAYERS } from "./constants";
 import { getRandomInt } from "./libs/getRandom";
 
 const app = express();
@@ -80,7 +80,9 @@ io.on("connection", (socket) => {
 
 		if (room.isPlaying) {
 			const snapshot = room.snapshots;
-			socket.emit("boardUpdated", snapshot);
+			if (members <= MAX_PLAYERS) {
+				socket.emit("boardUpdated", snapshot);
+			}
 			io.to(roomId).emit("membersUpdate", { members });
 		}
 	});
@@ -122,9 +124,9 @@ io.on("connection", (socket) => {
 		const roomId = (socket.data as any).roomId as string | undefined;
 		if (!roomId) return;
 
-		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		if (size > 0) {
-			socket.to(roomId).emit("someoneDisconnected");
+		const members = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		if (members > 0) {
+			io.to(roomId).emit("someoneDisconnected", members);
 		}
 
 		const room = rooms.get(roomId);
@@ -139,7 +141,7 @@ io.on("connection", (socket) => {
 				delete room.guestIds[Role.SUB];
 			}
 		}
-		if (size === 0) {
+		if (members === 0) {
 			rooms.delete(roomId);
 		}
 	});
