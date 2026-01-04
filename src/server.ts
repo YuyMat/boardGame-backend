@@ -3,7 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import { RoomId, FirstRole, Rooms, RoleType, GameType } from "./types";
-import { Role } from "./constants";
+import { Role, MAX_PLAYERS } from "./constants";
 import { getRandomInt } from "./libs/getRandom";
 
 const app = express();
@@ -71,22 +71,19 @@ io.on("connection", (socket) => {
 		socket.emit("joinedRoom", { members, role, guestIds });
 
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
-		if (members === 2) {
+		if (members === MAX_PLAYERS) {
 			const firstRole = room.firstRole === "random"
 				? (Math.random() < 0.5 ? Role.MAIN : Role.SUB)
 				: room.firstRole;
 			io.to(roomId).emit("roomPaired", { firstRole, guestIds });
 		}
 
-		// 既にスナップショットがあれば、新規参加者へ送る
-		const snapshot = rooms.get(roomId)?.snapshots;
-		const hasSnapshot = !!snapshot && (
-			snapshot.board !== undefined ||
-			snapshot.currentRole !== undefined ||
-			snapshot.lastPosition !== undefined
-		);
-		if (hasSnapshot) {
-			socket.emit("boardUpdated", snapshot);
+		if (room.isPlaying) {
+			const snapshot = room.snapshots;
+			if (members <= MAX_PLAYERS) {
+				socket.emit("boardUpdated", snapshot);
+			}
+			io.to(roomId).emit("membersUpdate", { members });
 		}
 	});
 
@@ -127,9 +124,9 @@ io.on("connection", (socket) => {
 		const roomId = (socket.data as any).roomId as string | undefined;
 		if (!roomId) return;
 
-		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		if (size > 0) {
-			io.to(roomId).emit("someoneDisconnected");
+		const members = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		if (members > 0) {
+			io.to(roomId).emit("someoneDisconnected", members);
 		}
 
 		const room = rooms.get(roomId);
@@ -144,7 +141,7 @@ io.on("connection", (socket) => {
 				delete room.guestIds[Role.SUB];
 			}
 		}
-		if (size === 0) {
+		if (members === 0) {
 			rooms.delete(roomId);
 		}
 	});
