@@ -71,7 +71,7 @@ io.on("connection", (socket) => {
 		socket.emit("joinedRoom", { members, role, guestIds });
 
 		// 2人以上そろったら、部屋の全員にペアリング完了通知
-		if (members === 2) {
+		if (members === MAX_PLAYERS) {
 			const firstRole = room.firstRole === "random"
 				? (Math.random() < 0.5 ? Role.MAIN : Role.SUB)
 				: room.firstRole;
