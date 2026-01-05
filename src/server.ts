@@ -130,12 +130,24 @@ io.on("connection", (socket) => {
 		}
 
 		const room = rooms.get(roomId);
-		// ロールのクリーンアップ（このソケットが担当していた役を解除）
+		// ロールのクリーンアップ
 		if (room) {
+			// ホスト退出時
 			if (room.roles[Role.MAIN] === socket.id) {
-				delete room.roles[Role.MAIN];
-				delete room.guestIds[Role.MAIN];
+				// サブをホストに昇格
+				if (room.roles[Role.SUB]) {
+					room.roles[Role.MAIN] = room.roles[Role.SUB];
+					room.guestIds[Role.MAIN] = room.guestIds[Role.SUB];
+					delete room.roles[Role.SUB];
+					delete room.guestIds[Role.SUB];
+					socket.to(roomId).emit("hostUpdated", room.guestIds);
+				} else {
+					// サブが存在しない場合、MAINをクリーンアップ
+					delete room.roles[Role.MAIN];
+					delete room.guestIds[Role.MAIN];
+				}
 			}
+			// サブ退出時
 			if (room.roles[Role.SUB] === socket.id) {
 				delete room.roles[Role.SUB];
 				delete room.guestIds[Role.SUB];
