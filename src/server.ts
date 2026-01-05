@@ -127,28 +127,36 @@ io.on("connection", (socket) => {
 		const roomId = (socket.data as any).roomId as string | undefined;
 		if (!roomId) return;
 
-		const size = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
-		if (size > 0) {
-			io.to(roomId).emit("someoneDisconnected");
+		const members = io.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+		if (members > 0) {
+			io.to(roomId).emit("someoneDisconnected", members);
 		}
 
 		const room = rooms.get(roomId);
 		// ロールのクリーンアップ
 		if (room) {
-			// ホストが退出したら、サブをホストに更新
-			if (room.roles[Role.MAIN] === socket.id && room.roles[Role.SUB]) {
-				room.roles[Role.MAIN] = room.roles[Role.SUB];
-				room.guestIds[Role.MAIN] = room.guestIds[Role.SUB];
-				delete room.roles[Role.SUB];
-				delete room.guestIds[Role.SUB];
-				socket.to(roomId).emit("hostUpdated", room.guestIds);
+			// ホスト退出時
+			if (room.roles[Role.MAIN] === socket.id) {
+				// サブをホストに昇格
+				if (room.roles[Role.SUB]) {
+					room.roles[Role.MAIN] = room.roles[Role.SUB];
+					room.guestIds[Role.MAIN] = room.guestIds[Role.SUB];
+					delete room.roles[Role.SUB];
+					delete room.guestIds[Role.SUB];
+					socket.to(roomId).emit("hostUpdated", room.guestIds);
+				} else {
+					// サブが存在しない場合、MAINをクリーンアップ
+					delete room.roles[Role.MAIN];
+					delete room.guestIds[Role.MAIN];
+				}
 			}
+			// サブ退出時
 			if (room.roles[Role.SUB] === socket.id) {
 				delete room.roles[Role.SUB];
 				delete room.guestIds[Role.SUB];
 			}
 		}
-		if (size === 0) {
+		if (members === 0) {
 			rooms.delete(roomId);
 		}
 	});
